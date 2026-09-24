@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Make a Pizza - Kahoot Classroom Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js 3D Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #46178F 0%, #1368CE 100%);
+            min-height: 100vh;
+            color: #1a202c;
+            overflow-x: hidden;
+        }
+        .font-fredoka {
+            font-family: 'Fredoka One', cursive;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FF6B6B;
+            border-radius: 10px;
+        }
+
+        /* Drag & drop tile styles */
+        .letter-tile {
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 0 #D97706;
+        }
+        .letter-tile:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #D97706;
+        }
+        .blank-slot {
+            transition: all 0.2s ease;
+            border: 2px dashed #F59E0B;
+        }
+        .blank-slot.active {
+            border-color: #EF4444;
+            background-color: #FEF3C7;
+            transform: scale(1.05);
+        }
+        .blank-slot.filled {
+            border-style: solid;
+            border-color: #10B981;
+            background-color: #D1FAE5;
+        }
+
+        /* Kahoot-style animations */
+        @keyframes pulse-grow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse-grow {
+            animation: pulse-grow 2s infinite ease-in-out;
+        }
+
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-bounce-subtle {
+            animation: bounce-subtle 1.8s infinite ease-in-out;
+        }
+
+        /* Glassmorphism card */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.7);
+        }
+        .glass-dark {
+            background: rgba(20, 15, 38, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden select-none">
+
+    <!-- 1. LANDING & ROLE SELECTION SCREEN -->
+    <div id="screen-landing" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
+        <div class="max-w-md w-full glass-panel p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center gap-5 border-4 border-yellow-400 animate-bounce-subtle">
+            <div class="flex items-center gap-3">
+                <span class="text-4xl">🍕</span>
+                <h1 class="font-fredoka text-3xl sm:text-4xl text-purple-900">Pizza Kahoot!</h1>
+            </div>
+            <p class="text-sm font-bold text-gray-600">English Sentence & Vocabulary Learning Game</p>
+
+            <!-- Mode Tabs Switcher -->
+            <div class="flex w-full bg-gray-200/80 p-1 rounded-2xl">
+                <button id="tab-student" onclick="switchRoleTab('student')" class="w-1/2 py-2 rounded-xl font-fredoka text-sm transition bg-white text-purple-900 shadow">
+                    <i class="fa-solid fa-user-graduate mr-1"></i> Student
+                </button>
+                <button id="tab-teacher" onclick="switchRoleTab('teacher')" class="w-1/2 py-2 rounded-xl font-fredoka text-sm transition text-gray-600">
+                    <i class="fa-solid fa-chalkboard-user mr-1"></i> Teacher / Host
+                </button>
+            </div>
+
+            <!-- Student Form -->
+            <div id="form-student" class="w-full flex flex-col gap-3">
+                <div>
+                    <label class="block text-left text-xs font-bold text-purple-900 mb-1">Game PIN</label>
+                    <input type="number" id="input-game-pin" placeholder="e.g. 1234" class="w-full px-4 py-3 rounded-2xl border-2 border-purple-300 font-fredoka text-center text-2xl tracking-widest focus:outline-none focus:border-yellow-500 uppercase bg-yellow-50">
+                </div>
+                <div>
+                    <label class="block text-left text-xs font-bold text-purple-900 mb-1">Your Name</label>
+                    <input type="text" id="input-student-name" placeholder="Enter your nickname..." maxlength="15" class="w-full px-4 py-3 rounded-2xl border-2 border-purple-300 font-bold text-center text-lg focus:outline-none focus:border-yellow-500 bg-white">
+                </div>
+                <button onclick="handleStudentJoin()" class="mt-2 w-full py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-fredoka text-xl rounded-2xl shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <span>Enter Lobby!</span>
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                </button>
+            </div>
+
+            <!-- Teacher Host Form -->
+            <div id="form-teacher" class="hidden w-full flex flex-col gap-4">
+                <p class="text-xs text-gray-600 font-semibold">Create a live Kahoot game room for your class. Display the PIN on the board for students to join!</p>
+                <button onclick="handleTeacherCreateRoom()" class="w-full py-4 bg-gradient-to-r from-amber-500 to-red-500 hover:from-amber-600 hover:to-red-600 text-white font-fredoka text-xl rounded-2xl shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Create Game Room</span>
+                </button>
+            </div>
+
+            <div id="landing-error" class="hidden text-xs font-bold text-red-600 bg-red-100 p-2.5 rounded-xl w-full border border-red-300"></div>
+        </div>
+    </div>
+
+    <!-- 2. TEACHER LOBBY & LIVE MONITORING DASHBOARD -->
+    <div id="screen-teacher-dashboard" class="hidden fixed inset-0 z-40 flex flex-col bg-purple-950 text-white p-4 sm:p-6 overflow-y-auto">
+        <!-- Top Banner -->
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-purple-900/80 p-4 rounded-3xl border-2 border-purple-500/40 shadow-xl">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">🍕</span>
+                <div>
+                    <h2 class="font-fredoka text-2xl text-yellow-400">Classroom Host Dashboard</h2>
+                    <p class="text-xs text-purple-200">Share PIN with your students!</p>
+                </div>
+            </div>
+
+            <!-- PIN Display Box -->
+            <div class="bg-yellow-400 text-purple-950 px-6 py-2 rounded-2xl font-fredoka flex items-center gap-3 shadow-lg">
+                <span class="text-xs uppercase font-bold text-purple-900">Game PIN:</span>
+                <span id="teacher-display-pin" class="text-3xl sm:text-4xl tracking-widest">----</span>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="flex items-center gap-2">
+                <button id="btn-start-game-room" onclick="handleTeacherStartGame()" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-fredoka text-lg rounded-2xl shadow-xl transition pulse-btn flex items-center gap-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Start Game!</span>
+                </button>
+                <button onclick="handleLeaveRoom()" class="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl text-xs transition">
+                    Leave
+                </button>
+            </div>
+        </div>
+
+        <!-- Student Waiting Grid / Live Progress Tracker -->
+        <div class="flex-1 mt-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-fredoka text-xl text-yellow-300 flex items-center gap-2">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Joined Students (<span id="teacher-player-count">0</span>)</span>
+                </h3>
+                <span id="room-status-badge" class="bg-purple-800 text-purple-200 text-xs font-bold px-3 py-1 rounded-full border border-purple-600">
+                    Status: Waiting in Lobby
+                </span>
+            </div>
+
+            <!-- Student Grid Cards -->
+            <div id="teacher-students-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <!-- Dynamically populated student cards -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. STUDENT WAITING LOBBY -->
+    <div id="screen-student-lobby" class="hidden fixed inset-0 z-40 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-900 to-purple-900 text-white text-center">
+        <div class="max-w-md w-full glass-panel p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-6 border-4 border-yellow-400 animate-bounce-subtle">
+            <div class="w-20 h-20 rounded-full bg-yellow-400 text-purple-950 flex items-center justify-center text-4xl shadow-inner font-fredoka">
+                👨‍🍳
+            </div>
+            <div>
+                <h2 class="font-fredoka text-3xl text-purple-950">You're In!</h2>
+                <p id="student-lobby-welcome" class="text-lg font-bold text-purple-800 mt-1">Welcome, Student!</p>
+            </div>
+
+            <div class="bg-purple-100 text-purple-900 p-4 rounded-2xl w-full border border-purple-200 font-bold text-sm flex flex-col items-center gap-2">
+                <i class="fa-solid fa-spinner fa-spin text-purple-600 text-2xl"></i>
+                <span>See your name on the teacher's screen?</span>
+                <span class="text-xs text-gray-500">Waiting for teacher to click "Start Game"...</span>
+            </div>
+
+            <button onclick="handleLeaveRoom()" class="text-xs font-bold text-gray-500 hover:text-red-600 underline">
+                Leave Game
+            </button>
+        </div>
+    </div>
+
+    <!-- 4. MAIN GAME PLAY AREA (Shown when teacher starts game) -->
+    <div id="screen-main-game" class="hidden h-screen w-screen flex flex-col justify-between overflow-hidden">
+
+        <!-- Top Header Bar -->
+        <header class="w-full px-4 py-2 z-30 flex items-center justify-between glass-panel rounded-b-2xl shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="bg-red-500 text-white p-2 rounded-xl text-xl font-fredoka shadow-md flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center overflow-hidden rounded border border-white/40 shadow-sm w-7 h-5">
+                        <svg class="w-full h-full" viewBox="0 0 3 2" preserveAspectRatio="none">
+                            <rect width="1" height="2" x="0" fill="#009246"/>
+                            <rect width="1" height="2" x="1" fill="#ffffff"/>
+                            <rect width="1" height="2" x="2" fill="#ce2b37"/>
+                        </svg>
+                    </span>
+                    <span>Make a Pizza</span>
+                </div>
+                <div class="flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-bold text-sm border border-yellow-300">
+                    <i class="fa-solid fa-user text-amber-600"></i>
+                    <span id="game-player-name-display">Student</span>
+                </div>
+                <div class="hidden md:flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-bold text-sm border border-yellow-300">
+                    <i class="fa-solid fa-star text-yellow-500"></i>
+                    <span>Stars: <span id="star-count">0</span></span>
+                </div>
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="flex items-center gap-1 sm:gap-3 bg-white/70 px-3 py-1.5 rounded-full shadow-inner text-xs sm:text-sm font-bold">
+                <div id="step-btn-1" class="step-indicator px-3 py-1 rounded-full bg-red-500 text-white flex items-center gap-1">
+                    <span>1. Paint</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+                <div id="step-btn-2" class="step-indicator px-3 py-1 rounded-full text-gray-500 flex items-center gap-1">
+                    <span>2. Toppings</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+                <div id="step-btn-3" class="step-indicator px-3 py-1 rounded-full text-gray-500 flex items-center gap-1">
+                    <span>3. Spell</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+                <div id="step-btn-4" class="step-indicator px-3 py-1 rounded-full text-gray-500 flex items-center gap-1">
+                    <span>4. Bake & Serve</span>
+                </div>
+            </div>
+
+            <!-- Actions / Controls -->
+            <div class="flex items-center gap-2">
+                <button id="btn-audio-toggle" onclick="toggleAudio()" class="w-10 h-10 rounded-xl bg-white shadow border border-gray-200 text-gray-700 hover:bg-yellow-100 transition flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-volume-high text-red-500" id="audio-icon"></i>
+                </button>
+                <button onclick="openVocabularyModal()" class="px-3 py-2 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-bold shadow hover:brightness-105 transition flex items-center gap-1 text-sm">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span class="hidden sm:inline">Ingredients</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Interactive Area -->
+        <main class="relative flex-1 w-full h-full overflow-hidden flex flex-col md:flex-row">
+
+            <!-- 3D Viewport Canvas Container -->
+            <div id="webgl-container" class="relative w-full h-full cursor-grab active:cursor-grabbing">
+                <!-- Overlay Instructions Banner -->
+                <div id="stage-banner" class="absolute top-4 left-1/2 -translate-x-1/2 z-10 glass-panel px-6 py-2.5 rounded-full shadow-lg border border-white text-center max-w-lg w-11/12 transition-all duration-300">
+                    <div id="banner-title" class="text-xs font-bold uppercase tracking-wider text-red-500">Step 1: Fine-Tip Sauce Pen</div>
+                    <div id="banner-desc" class="text-sm font-bold text-gray-800">Draw precise patterns or doodles on your pizza crust!</div>
+                </div>
+
+                <!-- Customer Speech Bubble Overlay -->
+                <div id="customer-speech-bubble" class="hidden absolute top-16 right-4 sm:right-12 z-20 glass-panel px-6 py-3.5 rounded-3xl shadow-2xl border-2 border-yellow-300 text-center animate-bounce-subtle max-w-xs transition-all duration-300">
+                    <div class="text-xs font-bold uppercase tracking-wider text-amber-600 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-face-smile-beam text-yellow-500 text-base"></i>
+                        <span>Happy Customer</span>
+                    </div>
+                    <div id="customer-bubble-text" class="text-lg font-fredoka text-gray-900 mt-1">
+                        Mmm! Delicious! Thank you! 🍕❤️
+                    </div>
+                    <!-- Speech Bubble Arrow Tail -->
+                    <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-white"></div>
+                </div>
+
+                <!-- Floating Quick Control Buttons for 3D Camera -->
+                <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-2">
+                    <button onclick="resetCamera()" class="w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-gray-700 flex items-center justify-center font-bold" title="Reset View">
+                        <i class="fa-solid fa-arrows-to-dot"></i>
+                    </button>
+                    <button onclick="rotateCamera(1)" class="w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-gray-700 flex items-center justify-center font-bold" title="Rotate Left">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right / Bottom Interactive Overlay Controls -->
+            <div id="controls-panel" class="z-20 w-full md:w-96 glass-panel p-4 flex flex-col gap-3 shadow-2xl border-t md:border-l border-white max-h-[50vh] md:max-h-full overflow-y-auto">
+
+                <!-- STAGE 1 CONTROLS: Sauce Pen Drawing -->
+                <div id="stage-1-controls" class="stage-control-group flex flex-col gap-3">
+                    <h3 class="font-fredoka text-lg text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-paint-brush text-red-500"></i>
+                        <span>Sauce & Dough Decorator</span>
+                    </h3>
+                    <p class="text-xs text-gray-600 font-medium">Pick a color pen and draw fine details directly on the pizza base below!</p>
+                    
+                    <!-- Drawing Canvas Preview / Interactive Pad -->
+                    <div class="relative w-full aspect-square max-w-[220px] mx-auto rounded-full border-4 border-amber-300 shadow-inner overflow-hidden bg-amber-100">
+                        <canvas id="sauce-canvas" width="256" height="256" class="w-full h-full cursor-crosshair"></canvas>
+                    </div>
+
+                    <!-- Pen Colors -->
+                    <div class="flex items-center justify-center gap-2 pt-1">
+                        <button onclick="setPenColor('#E63946', 'Red Tomato')" class="pen-btn w-9 h-9 rounded-full bg-red-500 border-2 border-white ring-2 ring-red-500 shadow hover:scale-110 transition" title="Red Tomato Sauce"></button>
+                        <button onclick="setPenColor('#2A9D8F', 'Pesto Green')" class="pen-btn w-9 h-9 rounded-full bg-emerald-600 border-2 border-white shadow hover:scale-110 transition" title="Pesto Sauce"></button>
+                        <button onclick="setPenColor('#FFB703', 'Yellow Cheese')" class="pen-btn w-9 h-9 rounded-full bg-amber-400 border-2 border-white shadow hover:scale-110 transition" title="Cheese Spread"></button>
+                        <button onclick="setPenColor('#9D4EDD', 'Purple Magic')" class="pen-btn w-9 h-9 rounded-full bg-purple-600 border-2 border-white shadow hover:scale-110 transition" title="Magic Berry Sauce"></button>
+                        <button onclick="clearCanvas()" class="px-3 py-1.5 rounded-xl bg-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-300 shadow">
+                            <i class="fa-solid fa-rotate-right"></i> Reset
+                        </button>
+                    </div>
+
+                    <button onclick="goToStage(2)" class="mt-2 w-full py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-fredoka text-lg rounded-2xl shadow-lg hover:shadow-xl transition flex items-center justify-center gap-2 pulse-btn">
+                        <span>Next: Add Toppings!</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- STAGE 2 CONTROLS: Ingredient Toppings Dock -->
+                <div id="stage-2-controls" class="stage-control-group hidden flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-fredoka text-lg text-gray-800 flex items-center gap-2">
+                            <i class="fa-solid fa-pepper-hot text-amber-500"></i>
+                            <span>Choose 3 Toppings</span>
+                        </h3>
+                        <span id="topping-count-badge" class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-300">
+                            Selected: <span id="selected-topping-count">0</span> / 3
+                        </span>
+                    </div>
+
+                    <!-- Ingredient Cards Dock -->
+                    <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1">
+                        <div id="ingredient-grid" class="contents"></div>
+                    </div>
+
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="clearToppings()" class="w-1/3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl text-xs shadow">
+                            Clear All
+                        </button>
+                        <button id="btn-to-stage-3" onclick="goToStage(3)" disabled class="w-2/3 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 disabled:opacity-50 text-white font-fredoka text-base rounded-xl shadow-lg flex items-center justify-center gap-2">
+                            <span>Next: Spell Sentence</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STAGE 3 CONTROLS: Target Sentence Builder & Letter Drag-and-Drop -->
+                <div id="stage-3-controls" class="stage-control-group hidden flex flex-col gap-3">
+                    <h3 class="font-fredoka text-lg text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-spell-check text-purple-600"></i>
+                        <span>Build Your Sentence!</span>
+                    </h3>
+
+                    <!-- Complete Sentence Display Panel -->
+                    <div class="bg-white/90 p-3.5 rounded-2xl border-2 border-purple-200 shadow-sm flex flex-col gap-2">
+                        <div class="text-xs font-bold uppercase text-purple-600 tracking-wider flex items-center justify-between">
+                            <span>Target Grammar:</span>
+                            <button onclick="speakFullSentence()" class="text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1 bg-purple-100 px-2 py-0.5 rounded-full text-[11px]">
+                                <i class="fa-solid fa-volume-high"></i> Read
+                            </button>
+                        </div>
+
+                        <!-- Sentence slots template -->
+                        <div class="text-sm font-bold text-gray-800 leading-relaxed flex flex-wrap items-center gap-1">
+                            <span>I would like to have</span>
+                            
+                            <!-- Ingredient Slot 1 -->
+                            <div id="slot-0-wrapper" class="inline-flex items-center gap-0.5 border-b-2 border-purple-400 px-1 py-0.5 min-w-[60px] justify-center bg-purple-50 rounded">
+                                <span id="slot-0-text" class="text-purple-700 font-extrabold">_____</span>
+                            </div>
+                            <span>,</span>
+
+                            <!-- Ingredient Slot 2 -->
+                            <div id="slot-1-wrapper" class="inline-flex items-center gap-0.5 border-b-2 border-purple-400 px-1 py-0.5 min-w-[60px] justify-center bg-purple-50 rounded">
+                                <span id="slot-1-text" class="text-purple-700 font-extrabold">_____</span>
+                            </div>
+
+                            <span>and</span>
+
+                            <!-- Ingredient Slot 3 -->
+                            <div id="slot-2-wrapper" class="inline-flex items-center gap-0.5 border-b-2 border-purple-400 px-1 py-0.5 min-w-[60px] justify-center bg-purple-50 rounded">
+                                <span id="slot-2-text" class="text-purple-700 font-extrabold">_____</span>
+                            </div>
+
+                            <span>on my pizza.</span>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Spelling Dock -->
+                    <div class="bg-purple-50 p-3 rounded-2xl border border-purple-200 flex flex-col gap-2">
+                        <div class="flex items-center justify-between text-xs font-bold text-purple-800">
+                            <span>Spell word: <span id="current-spelling-target" class="text-red-500 font-black uppercase">...</span></span>
+                            <button onclick="speakTargetIngredient()" class="text-purple-600 hover:underline flex items-center gap-1">
+                                <i class="fa-solid fa-volume-low"></i> Hear word
+                            </button>
+                        </div>
+
+                        <!-- Letter Blank Slots -->
+                        <div id="letter-slots-container" class="flex flex-wrap items-center justify-center gap-1.5 my-1"></div>
+
+                        <!-- Letter Tile Bank -->
+                        <div class="text-[11px] font-bold text-gray-500 text-center">Tap or Drag letters to complete the word:</div>
+                        <div id="letter-bank-container" class="flex flex-wrap justify-center gap-1.5 p-1 max-h-32 overflow-y-auto"></div>
+                    </div>
+
+                    <button id="btn-to-stage-4" onclick="goToStage(4)" disabled class="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 disabled:opacity-50 text-white font-fredoka text-lg rounded-2xl shadow-lg flex items-center justify-center gap-2">
+                        <span>Finish Sentence & Bake!</span>
+                        <i class="fa-solid fa-fire text-yellow-300"></i>
+                    </button>
+                </div>
+
+                <!-- STAGE 4 CONTROLS: 3D Oven Bake & Serve -->
+                <div id="stage-4-controls" class="stage-control-group hidden flex flex-col gap-3">
+                    <h3 class="font-fredoka text-lg text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-red-500"></i>
+                        <span>Wood-Fired Pizza Oven</span>
+                    </h3>
+
+                    <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 text-center flex flex-col gap-2">
+                        <div class="text-xs font-bold text-amber-800">Baking Temperature</div>
+                        <div class="text-2xl font-fredoka text-red-600" id="oven-temp-display">450°C</div>
+                        
+                        <div class="w-full bg-gray-200 h-4 rounded-full overflow-hidden border border-gray-300">
+                            <div id="bake-progress-bar" class="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <button id="btn-start-bake" onclick="startBakingProcess()" class="w-full py-3.5 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-fredoka text-lg rounded-2xl shadow-lg flex items-center justify-center gap-2 pulse-btn">
+                        <i class="fa-solid fa-fire-burner"></i>
+                        <span>Slide Pizza Into Oven!</span>
+                    </button>
+
+                    <button id="btn-serve-pizza" onclick="servePizzaToCustomer()" class="hidden w-full py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-fredoka text-lg rounded-2xl shadow-lg flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-utensils"></i>
+                        <span>Serve to Customer!</span>
+                    </button>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Vocabulary Book Modal -->
+    <div id="vocab-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl flex flex-col gap-4 border-4 border-yellow-300 max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2 text-xl font-fredoka text-red-500">
+                    <i class="fa-solid fa-book"></i>
+                    <span>Pizza Ingredients Dictionary</span>
+                </div>
+                <button onclick="closeVocabularyModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 flex items-center justify-center">✕</button>
+            </div>
+            <div id="vocab-list-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto p-1 max-h-[60vh]"></div>
+            <button onclick="closeVocabularyModal()" class="w-full py-2.5 bg-yellow-400 hover:bg-yellow-500 font-fredoka text-gray-900 rounded-xl shadow">Back to Pizza Making</button>
+        </div>
+    </div>
+
+    <!-- Celebration Screen Overlay -->
+    <div id="celebration-overlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center">
+        <div class="bg-white/10 border-2 border-white/20 p-8 rounded-3xl max-w-md w-full flex flex-col items-center gap-4 shadow-2xl animate-bounce-subtle">
+            <div class="text-6xl animate-bounce">🍕🎉</div>
+            <h2 class="text-3xl font-fredoka text-yellow-300">Delicious Job!</h2>
+            <p id="celebration-text" class="text-base font-bold text-white/90">You made an awesome pizza and spoke a perfect sentence!</p>
+            
+            <div id="final-sentence-quote" class="bg-white/20 p-4 rounded-2xl text-sm italic font-bold text-yellow-100 border border-white/30 w-full">
+                "I would like to have mushrooms, pineapples and cheese on my pizza."
+            </div>
+
+            <button onclick="resetGameToStart()" class="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-fredoka text-xl rounded-2xl shadow-xl transition transform hover:scale-105">
+                Make Another Pizza!
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase Firebase 11.6.1 ES Module Import -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase state initialization
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'pizza-kahoot-game';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-api-key",
+            authDomain: "demo-app.firebaseapp.com",
+            projectId: "demo-app",
+            storageBucket: "demo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:demo"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let activeRoomId = null;
+        let roomUnsubscribe = null;
+        let myPlayerId = null;
+        let isTeacherMode = false;
+
+        // Local & Cross-Tab Broadcast Channel Sync for instant response
+        const broadcastSync = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('pizza_kahoot_channel') : null;
+        let localRoomState = {};
+
+        function saveLocalRoom(pin, data) {
+            localRoomState = data;
+            try {
+                localStorage.setItem(`pizza_room_${pin}`, JSON.stringify(data));
+            } catch(e) {}
+            if (broadcastSync) {
+                broadcastSync.postMessage({ type: 'ROOM_UPDATE', pin, data });
+            }
+        }
+
+        function getLocalRoom(pin) {
+            if (localRoomState && localRoomState.pin === pin) return localRoomState;
+            try {
+                const stored = localStorage.getItem(`pizza_room_${pin}`);
+                if (stored) return JSON.parse(stored);
+            } catch(e) {}
+            return null;
+        }
+
+        // Initialize Firebase Authentication with timeout
+        async function initAuth() {
+            try {
+                const authPromise = (typeof __initial_auth_token !== 'undefined' && __initial_auth_token)
+                    ? signInWithCustomToken(auth, __initial_auth_token)
+                    : signInAnonymously(auth);
+                const timeoutPromise = new Promise((_, r) => setTimeout(() => r("timeout"), 1000));
+                const userCred = await Promise.race([authPromise, timeoutPromise]);
+                if (userCred && userCred.user) currentUser = userCred.user;
+            } catch (err) {
+                console.warn("Auth initialization note:", err);
+            }
+        }
+        initAuth();
+
+        // Helper to get Room Document Reference
+        function getRoomDocRef(pin) {
+            return doc(db, 'artifacts', appId, 'public', 'data', 'rooms', pin.toString());
+        }
+
+        // Window exposed API functions for UI interaction
+        window.kahootSync = {
+            async createRoom() {
+                if (!currentUser) await initAuth();
+                const pin = Math.floor(1000 + Math.random() * 9000).toString();
+                activeRoomId = pin;
+                isTeacherMode = true;
+
+                const roomData = {
+                    pin: pin,
+                    status: 'lobby', // 'lobby', 'playing', 'ended'
+                    hostId: currentUser?.uid || ('host_' + pin),
+                    createdAt: Date.now(),
+                    players: {}
+                };
+
+                // Store locally immediately
+                saveLocalRoom(pin, roomData);
+
+                // Try Firestore with 1.2s timeout fallback so UI never freezes
+                try {
+                    const roomRef = getRoomDocRef(pin);
+                    const setPromise = setDoc(roomRef, roomData);
+                    const timeoutPromise = new Promise((_, r) => setTimeout(() => r("timeout"), 1200));
+                    await Promise.race([setPromise, timeoutPromise]);
+                } catch (e) {
+                    console.warn("Firestore sync skipped, running room in local/broadcast mode:", e);
+                }
+
+                window.kahootSync.subscribeToRoom(pin);
+                return pin;
+            },
+
+            async joinRoom(pin, studentName) {
+                if (!currentUser) await initAuth();
+                activeRoomId = pin.toString();
+                myPlayerId = currentUser?.uid || ('p_' + Math.random().toString(36).substring(2, 7));
+                isTeacherMode = false;
+
+                const playerData = {
+                    id: myPlayerId,
+                    name: studentName,
+                    stage: 1,
+                    stars: 0,
+                    sentence: '',
+                    joinedAt: Date.now()
+                };
+
+                // Check local room first
+                let existingLocal = getLocalRoom(activeRoomId);
+                let roomRef = getRoomDocRef(activeRoomId);
+                let snap = null;
+
+                try {
+                    const getPromise = getDoc(roomRef);
+                    const timeoutPromise = new Promise((_, r) => setTimeout(() => r("timeout"), 1200));
+                    snap = await Promise.race([getPromise, timeoutPromise]);
+                } catch(e) {
+                    console.warn("Firestore fetch timed out, checking local room fallback.");
+                }
+
+                if (!snap?.exists() && !existingLocal) {
+                    // Fallback create virtual room locally if host PIN matches
+                    existingLocal = { pin: activeRoomId, status: 'lobby', players: {} };
+                }
+
+                if (existingLocal) {
+                    existingLocal.players[myPlayerId] = playerData;
+                    saveLocalRoom(activeRoomId, existingLocal);
+                }
+
+                try {
+                    if (snap?.exists()) {
+                        await updateDoc(roomRef, {
+                            [`players.${myPlayerId}`]: playerData
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Firestore update skipped:", e);
+                }
+
+                window.kahootSync.subscribeToRoom(activeRoomId);
+                return true;
+            },
+
+            async startGame() {
+                if (!activeRoomId) return;
+                let current = getLocalRoom(activeRoomId) || { pin: activeRoomId, players: {} };
+                current.status = 'playing';
+                saveLocalRoom(activeRoomId, current);
+
+                try {
+                    const roomRef = getRoomDocRef(activeRoomId);
+                    await updateDoc(roomRef, { status: 'playing' });
+                } catch (e) {
+                    console.warn("Firestore start game skipped:", e);
+                }
+            },
+
+            async updateStudentProgress(stageNum, starCount, sentenceStr = '') {
+                if (!activeRoomId || !myPlayerId || isTeacherMode) return;
+                
+                let current = getLocalRoom(activeRoomId);
+                if (current && current.players && current.players[myPlayerId]) {
+                    current.players[myPlayerId].stage = stageNum;
+                    current.players[myPlayerId].stars = starCount;
+                    current.players[myPlayerId].sentence = sentenceStr;
+                    saveLocalRoom(activeRoomId, current);
+                }
+
+                try {
+                    const roomRef = getRoomDocRef(activeRoomId);
+                    await updateDoc(roomRef, {
+                        [`players.${myPlayerId}.stage`]: stageNum,
+                        [`players.${myPlayerId}.stars`]: starCount,
+                        [`players.${myPlayerId}.sentence`]: sentenceStr
+                    });
+                } catch (e) {}
+            },
+
+            subscribeToRoom(pin) {
+                if (roomUnsubscribe) roomUnsubscribe();
+
+                const handleRoomData = (data) => {
+                    if (!data) return;
+                    if (isTeacherMode) {
+                        renderTeacherPlayerGrid(data.players || {}, data.status);
+                    } else {
+                        if (data.status === 'playing' && window.currentAppScreen === 'student-lobby') {
+                            window.launchMainGameForStudent();
+                        }
+                    }
+                };
+
+                // Listen to local BroadcastChannel
+                if (broadcastSync) {
+                    broadcastSync.onmessage = (event) => {
+                        if (event.data && event.data.pin === pin && event.data.data) {
+                            handleRoomData(event.data.data);
+                        }
+                    };
+                }
+
+                // Initial local render
+                const initialLocal = getLocalRoom(pin);
+                if (initialLocal) handleRoomData(initialLocal);
+
+                // Listen to Firestore
+                try {
+                    const roomRef = getRoomDocRef(pin);
+                    roomUnsubscribe = onSnapshot(roomRef, (snapshot) => {
+                        if (snapshot.exists()) {
+                            const data = snapshot.data();
+                            saveLocalRoom(pin, data);
+                            handleRoomData(data);
+                        }
+                    }, (err) => {
+                        console.warn("Room snapshot listener warning:", err);
+                    });
+                } catch(e) {}
+            },
+
+            leaveRoom() {
+                if (roomUnsubscribe) roomUnsubscribe();
+                activeRoomId = null;
+                myPlayerId = null;
+            }
+        };
+    </script>
+
+    <script>
+        // 10 Ingredients Definition
+        const INGREDIENTS = [
+            { id: 'mushrooms', name: 'mushrooms', color: '#D4A373', desc: 'Brown earthy mushroom caps', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><path d="M12 32 C12 16 20 8 32 8 C44 8 52 16 52 32 Z" fill="#D4A373"/><ellipse cx="22" cy="20" rx="4" ry="5" fill="#FFF" opacity="0.6"/><ellipse cx="40" cy="22" rx="3" ry="4" fill="#FFF" opacity="0.6"/><path d="M26 32 L26 50 C26 53 38 53 38 50 L38 32 Z" fill="#F4EAD4"/></svg>` },
+            { id: 'pineapples', name: 'pineapples', color: '#FFB703', desc: 'Sweet yellow tropical slices', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><path d="M32 10 Q28 2 22 8 Q28 14 30 20 Z" fill="#2A9D8F"/><path d="M32 10 Q36 2 42 8 Q36 14 34 20 Z" fill="#2A9D8F"/><path d="M32 8 Q32 0 32 18 Z" fill="#38B000"/><path d="M16 24 C16 18 22 18 32 18 C42 18 48 18 48 24 L44 54 C44 58 38 60 32 60 C26 60 20 58 20 54 Z" fill="#FFB703"/><path d="M20 28 L44 48 M20 38 L36 52 M24 22 L48 42 M44 28 L20 48 M44 38 L28 52 M40 22 L16 42" stroke="#FB8500" stroke-width="2.5" stroke-linecap="round"/></svg>` },
+            { id: 'tomatoes', name: 'tomatoes', color: '#E63946', desc: 'Juicy red tomato wheels', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><circle cx="32" cy="32" r="26" fill="#E63946"/><circle cx="32" cy="32" r="21" fill="#D62828"/><path d="M32 16 Q36 26 44 28 Q36 32 32 44 Q28 32 20 28 Q28 26 32 16 Z" fill="#C1121F"/><circle cx="26" cy="24" r="2.5" fill="#FFD166"/><circle cx="38" cy="24" r="2.5" fill="#FFD166"/><circle cx="38" cy="38" r="2.5" fill="#FFD166"/><circle cx="26" cy="38" r="2.5" fill="#FFD166"/></svg>` },
+            { id: 'onions', name: 'onions', color: '#B5179E', desc: 'Purple onion rings', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><circle cx="32" cy="32" r="25" fill="none" stroke="#7209B7" stroke-width="8"/><circle cx="32" cy="32" r="18" fill="none" stroke="#B5179E" stroke-width="5"/><circle cx="32" cy="32" r="11" fill="none" stroke="#F72585" stroke-width="4"/><circle cx="32" cy="32" r="4" fill="#F72585"/></svg>` },
+            { id: 'ham', name: 'ham', color: '#FF758F', desc: 'Savory pink ham squares', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><rect x="10" y="10" width="44" height="44" rx="8" fill="#FF758F"/><rect x="14" y="14" width="36" height="36" rx="6" fill="#FF8FA3"/><path d="M14 24 Q32 20 50 24 M14 40 Q32 36 50 40" stroke="#FF4D6D" stroke-width="3" fill="none"/></svg>` },
+            { id: 'corn', name: 'corn', color: '#FFD166', desc: 'Golden sweet corn kernels', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><path d="M22 12 C22 6 42 6 42 12 L40 50 C40 56 24 56 24 50 Z" fill="#FFB703"/><path d="M14 48 C14 48 20 28 24 52 Z" fill="#38B000"/><path d="M50 48 C50 48 44 28 40 52 Z" fill="#70E000"/><circle cx="28" cy="18" r="2.5" fill="#FFE3A8"/><circle cx="36" cy="18" r="2.5" fill="#FFE3A8"/><circle cx="28" cy="26" r="2.5" fill="#FFE3A8"/><circle cx="36" cy="26" r="2.5" fill="#FFE3A8"/><circle cx="28" cy="34" r="2.5" fill="#FFE3A8"/><circle cx="36" cy="34" r="2.5" fill="#FFE3A8"/><circle cx="28" cy="42" r="2.5" fill="#FFE3A8"/><circle cx="36" cy="42" r="2.5" fill="#FFE3A8"/></svg>` },
+            { id: 'sausages', name: 'sausages', color: '#9E2A2B', desc: 'Sliced sausage rounds', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><circle cx="32" cy="32" r="25" fill="#9E2A2B"/><circle cx="32" cy="32" r="22" fill="#B03A2E"/><ellipse cx="24" cy="22" rx="3" ry="2" fill="#FFF" opacity="0.7"/><ellipse cx="40" cy="26" rx="2" ry="3" fill="#FFF" opacity="0.7"/><ellipse cx="22" cy="38" rx="2" ry="2" fill="#FFF" opacity="0.7"/><ellipse cx="36" cy="40" rx="3" ry="2" fill="#FFF" opacity="0.7"/><ellipse cx="30" cy="28" rx="2" ry="2" fill="#FFF" opacity="0.7"/></svg>` },
+            { id: 'pepper', name: 'pepper', color: '#2A9D8F', desc: 'Crispy green bell pepper rings', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><path d="M32 6 C42 6 52 14 54 26 C56 38 48 56 32 58 C16 56 8 38 10 26 C12 14 22 6 32 6 Z" fill="#2A9D8F"/><path d="M32 12 C39 12 46 18 48 27 C49 36 43 50 32 52 C21 50 15 36 16 27 C18 18 25 12 32 12 Z" fill="#38B000"/><path d="M32 20 Q38 24 38 32 Q36 42 32 44 Q28 42 26 32 Q26 24 32 20 Z" fill="#FFF3EA"/></svg>` },
+            { id: 'cheese', name: 'cheese', color: '#FFE3A8', desc: 'Melted gooey mozzarella shreds', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><path d="M8 48 L56 48 L48 16 L8 48 Z" fill="#FFC300"/><path d="M8 48 L56 48 L56 54 L8 54 Z" fill="#FFB703"/><circle cx="28" cy="40" r="4" fill="#E69500" opacity="0.5"/><circle cx="40" cy="36" r="3" fill="#E69500" opacity="0.5"/><circle cx="22" cy="44" r="2.5" fill="#E69500" opacity="0.5"/><circle cx="36" cy="44" r="3" fill="#E69500" opacity="0.5"/></svg>` },
+            { id: 'olive', name: 'olive', color: '#2B2D42', desc: 'Black olive ring slices', svg: `<svg viewBox="0 0 64 64" class="w-10 h-10 drop-shadow-sm"><ellipse cx="32" cy="32" rx="26" ry="24" fill="#212529"/><ellipse cx="32" cy="32" rx="20" ry="18" fill="#343A40"/><ellipse cx="32" cy="32" rx="10" ry="9" fill="#FFF3EA"/><ellipse cx="32" cy="32" rx="8" ry="7" fill="#E63946"/></svg>` }
+        ];
+
+        // Game State Variables
+        let currentStage = 1;
+        let selectedToppings = [];
+        let currentActiveSlot = 0;
+        let slotWords = ['', '', ''];
+        let currentSpellingProgress = '';
+        let stars = 0;
+        let audioEnabled = true;
+        let studentNickname = 'Student';
+
+        window.currentAppScreen = 'landing';
+
+        // 3D Engine Variables
+        let scene, camera, renderer;
+        let pizzaMesh, crustMesh, ovenGroup;
+        let toppingMeshesGroup;
+        let ovenFireLight;
+
+        // 3D Customer & Dining Table Variables
+        let customerGroup, pawLeft, pawRight, tableMesh, plateMesh, heartsGroup;
+        let targetCamPos = new THREE.Vector3(0, 5.5, 6);
+        let targetLookAt = new THREE.Vector3(0, 0, 0);
+        let currentLookAt = new THREE.Vector3(0, 0, 0);
+        let targetPizzaPos = new THREE.Vector3(0, 0, 0);
+        let isServingAnimation = false;
+        let customerBouncing = false;
+
+        // 2D Canvas variables
+        let sauceCanvas, sauceCtx, isDrawing = false;
+        let currentPenColor = '#E63946';
+        let pizzaTextureMap;
+
+        // --- ROLE & ROOM SWITCHING LOGIC ---
+        function switchRoleTab(role) {
+            const errBox = document.getElementById('landing-error');
+            errBox.classList.add('hidden');
+
+            if (role === 'student') {
+                document.getElementById('tab-student').className = "w-1/2 py-2 rounded-xl font-fredoka text-sm transition bg-white text-purple-900 shadow";
+                document.getElementById('tab-teacher').className = "w-1/2 py-2 rounded-xl font-fredoka text-sm transition text-gray-600";
+                document.getElementById('form-student').classList.remove('hidden');
+                document.getElementById('form-teacher').classList.add('hidden');
+            } else {
+                document.getElementById('tab-teacher').className = "w-1/2 py-2 rounded-xl font-fredoka text-sm transition bg-white text-purple-900 shadow";
+                document.getElementById('tab-student').className = "w-1/2 py-2 rounded-xl font-fredoka text-sm transition text-gray-600";
+                document.getElementById('form-teacher').classList.remove('hidden');
+                document.getElementById('form-student').classList.add('hidden');
+            }
+        }
+
+        async function handleStudentJoin() {
+            const pin = document.getElementById('input-game-pin').value.trim();
+            const name = document.getElementById('input-student-name').value.trim();
+            const errBox = document.getElementById('landing-error');
+
+            if (!pin || pin.length < 4) {
+                errBox.innerText = "Please enter a valid 4-digit Game PIN!";
+                errBox.classList.remove('hidden');
+                return;
+            }
+            if (!name) {
+                errBox.innerText = "Please enter your name!";
+                errBox.classList.remove('hidden');
+                return;
+            }
+
+            errBox.classList.add('hidden');
+            studentNickname = name;
+
+            try {
+                await window.kahootSync.joinRoom(pin, name);
+                
+                // Show Student Lobby
+                document.getElementById('screen-landing').classList.add('hidden');
+                document.getElementById('screen-student-lobby').classList.remove('hidden');
+                document.getElementById('student-lobby-welcome').innerText = `Welcome, ${name}!`;
+                window.currentAppScreen = 'student-lobby';
+            } catch (err) {
+                errBox.innerText = err.message || "Failed to join room. Check the PIN!";
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        async function handleTeacherCreateRoom() {
+            const btn = document.querySelector('#form-teacher button');
+            if (btn) btn.disabled = true;
+            try {
+                const pin = await window.kahootSync.createRoom();
+                document.getElementById('teacher-display-pin').innerText = pin;
+                document.getElementById('screen-landing').classList.add('hidden');
+                document.getElementById('screen-teacher-dashboard').classList.remove('hidden');
+                window.currentAppScreen = 'teacher-dashboard';
+            } catch (err) {
+                console.error("Teacher room creation error:", err);
+                const errBox = document.getElementById('landing-error');
+                errBox.innerText = "Could not create room. Try again!";
+                errBox.classList.remove('hidden');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function renderTeacherPlayerGrid(playersObj, roomStatus) {
+            const grid = document.getElementById('teacher-students-grid');
+            const countElem = document.getElementById('teacher-player-count');
+            const statusBadge = document.getElementById('room-status-badge');
+
+            grid.innerHTML = '';
+            const players = Object.values(playersObj || {});
+            countElem.innerText = players.length;
+
+            if (roomStatus === 'playing') {
+                statusBadge.innerText = 'Status: Game Live!';
+                statusBadge.className = 'bg-emerald-800 text-emerald-200 text-xs font-bold px-3 py-1 rounded-full border border-emerald-500';
+            } else {
+                statusBadge.innerText = 'Status: Waiting in Lobby';
+                statusBadge.className = 'bg-purple-800 text-purple-200 text-xs font-bold px-3 py-1 rounded-full border border-purple-600';
+            }
+
+            if (players.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-8 text-center text-purple-300 font-bold text-sm">No students joined yet. Tell them to enter PIN: <span class="text-yellow-400 font-fredoka">${document.getElementById('teacher-display-pin').innerText}</span></div>`;
+                return;
+            }
+
+            players.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "bg-purple-900/90 border-2 border-purple-500/50 p-3.5 rounded-2xl flex flex-col items-center text-center gap-1.5 shadow-lg animate-bounce-subtle";
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-yellow-400 text-purple-950 flex items-center justify-center font-fredoka text-xl">
+                        👨‍🍳
+                    </div>
+                    <span class="font-fredoka text-base text-yellow-300 truncate w-full">${p.name}</span>
+                    <div class="flex items-center gap-2 text-xs text-purple-200 font-bold">
+                        <span><i class="fa-solid fa-star text-yellow-400"></i> ${p.stars || 0}</span>
+                        <span>•</span>
+                        <span>Stage ${p.stage || 1}/4</span>
+                    </div>
+                    ${p.sentence ? `<span class="text-[10px] text-emerald-300 italic truncate w-full">"${p.sentence}"</span>` : ''}
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function handleTeacherStartGame() {
+            await window.kahootSync.startGame();
+            playBeepSound(600, 0.2);
+        }
+
+        function handleLeaveRoom() {
+            window.kahootSync.leaveRoom();
+            document.getElementById('screen-teacher-dashboard').classList.add('hidden');
+            document.getElementById('screen-student-lobby').classList.add('hidden');
+            document.getElementById('screen-main-game').classList.add('hidden');
+            document.getElementById('screen-landing').classList.remove('hidden');
+            window.currentAppScreen = 'landing';
+        }
+
+        window.launchMainGameForStudent = function() {
+            document.getElementById('screen-student-lobby').classList.add('hidden');
+            document.getElementById('screen-main-game').classList.remove('hidden');
+            document.getElementById('game-player-name-display').innerText = studentNickname;
+            window.currentAppScreen = 'main-game';
+
+            // Initialize Game engine
+            init2DSauceCanvas();
+            init3DScene();
+            renderIngredientGrid();
+            renderVocabModalList();
+            setupDragAndDropSupport();
+        };
+
+        // --- 2D SAUCE CANVAS ---
+        function init2DSauceCanvas() {
+            sauceCanvas = document.getElementById('sauce-canvas');
+            sauceCtx = sauceCanvas.getContext('2d');
+            clearCanvas();
+
+            const startDraw = (e) => { isDrawing = true; drawPenStroke(e); };
+            const stopDraw = () => { isDrawing = false; sauceCtx.beginPath(); };
+
+            sauceCanvas.addEventListener('mousedown', startDraw);
+            sauceCanvas.addEventListener('mousemove', drawPenStroke);
+            sauceCanvas.addEventListener('mouseup', stopDraw);
+            sauceCanvas.addEventListener('mouseleave', stopDraw);
+
+            sauceCanvas.addEventListener('touchstart', (e) => { startDraw(e.touches[0]); e.preventDefault(); });
+            sauceCanvas.addEventListener('touchmove', (e) => { drawPenStroke(e.touches[0]); e.preventDefault(); });
+            sauceCanvas.addEventListener('touchend', stopDraw);
+        }
+
+        function clearCanvas() {
+            if (!sauceCtx) return;
+            sauceCtx.fillStyle = '#F4A261';
+            sauceCtx.fillRect(0, 0, sauceCanvas.width, sauceCanvas.height);
+            
+            sauceCtx.fillStyle = '#E76F51';
+            sauceCtx.beginPath();
+            sauceCtx.arc(128, 128, 105, 0, Math.PI * 2);
+            sauceCtx.fill();
+
+            if (pizzaTextureMap) pizzaTextureMap.needsUpdate = true;
+        }
+
+        function setPenColor(color, name) {
+            currentPenColor = color;
+            playBeepSound(440, 0.05);
+        }
+
+        function drawPenStroke(e) {
+            if (!isDrawing) return;
+            const rect = sauceCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (sauceCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (sauceCanvas.height / rect.height);
+
+            sauceCtx.lineWidth = 6;
+            sauceCtx.lineCap = 'round';
+            sauceCtx.strokeStyle = currentPenColor;
+
+            sauceCtx.lineTo(x, y);
+            sauceCtx.stroke();
+            sauceCtx.beginPath();
+            sauceCtx.moveTo(x, y);
+
+            if (pizzaTextureMap) pizzaTextureMap.needsUpdate = true;
+        }
+
+        // --- 3D SCENE & MODELS ---
+        function init3DScene() {
+            const container = document.getElementById('webgl-container');
+            if (renderer) return; // Prevent duplicate init
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xFFF3EA);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.copy(targetCamPos);
+            camera.lookAt(currentLookAt);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            ovenFireLight = new THREE.PointLight(0xff4500, 0, 10);
+            ovenFireLight.position.set(0, 1, -2);
+            scene.add(ovenFireLight);
+
+            build3DPizzaMesh();
+            build3DOvenMesh();
+            build3DCustomerAndTable();
+
+            toppingMeshesGroup = new THREE.Group();
+            pizzaMesh.add(toppingMeshesGroup);
+
+            setup3DCameraControls(container);
+            animate3DLoop();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function build3DCustomerAndTable() {
+            const tableX = 5.5;
+
+            tableMesh = new THREE.Group();
+            tableMesh.position.set(tableX, -0.6, 0);
+
+            const topGeo = new THREE.CylinderGeometry(2.3, 2.3, 0.15, 32);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.7 });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.castShadow = true;
+            top.receiveShadow = true;
+            tableMesh.add(top);
+
+            const clothGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.02, 32);
+            const clothMat = new THREE.MeshStandardMaterial({ color: 0xFFF8E7, roughness: 0.9 });
+            const cloth = new THREE.Mesh(clothGeo, clothMat);
+            cloth.position.y = 0.085;
+            cloth.receiveShadow = true;
+            tableMesh.add(cloth);
+
+            const plateGeo = new THREE.CylinderGeometry(1.6, 1.4, 0.08, 32);
+            const plateMat = new THREE.MeshStandardMaterial({ color: 0xF0F4F8, roughness: 0.2, metalness: 0.1 });
+            plateMesh = new THREE.Mesh(plateGeo, plateMat);
+            plateMesh.position.y = 0.13;
+            tableMesh.add(plateMesh);
+
+            scene.add(tableMesh);
+
+            // Chef Bear
+            customerGroup = new THREE.Group();
+            customerGroup.position.set(tableX, -0.5, -2.1);
+
+            const headGeo = new THREE.SphereGeometry(0.85, 24, 24);
+            const bearMat = new THREE.MeshStandardMaterial({ color: 0xC48B58, roughness: 0.8 });
+            const head = new THREE.Mesh(headGeo, bearMat);
+            head.position.y = 1.6;
+            customerGroup.add(head);
+
+            const snoutGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const snoutMat = new THREE.MeshStandardMaterial({ color: 0xFDF0D5, roughness: 0.9 });
+            const snout = new THREE.Mesh(snoutGeo, snoutMat);
+            snout.position.set(0, 1.45, 0.65);
+            snout.scale.set(1, 0.8, 0.9);
+            customerGroup.add(snout);
+
+            const noseGeo = new THREE.SphereGeometry(0.12, 12, 12);
+            const noseMat = new THREE.MeshStandardMaterial({ color: 0x1A1A1A, roughness: 0.3 });
+            const nose = new THREE.Mesh(noseGeo, noseMat);
+            nose.position.set(0, 1.55, 0.92);
+            customerGroup.add(nose);
+
+            const eyeGeo = new THREE.SphereGeometry(0.09, 12, 12);
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeL.position.set(-0.28, 1.7, 0.72);
+            customerGroup.add(eyeL);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeR.position.set(0.28, 1.7, 0.72);
+            customerGroup.add(eyeR);
+
+            const earGeo = new THREE.SphereGeometry(0.3, 16, 16);
+            const earL = new THREE.Mesh(earGeo, bearMat);
+            earL.position.set(-0.65, 2.3, 0.1);
+            customerGroup.add(earL);
+            const earR = new THREE.Mesh(earGeo, bearMat);
+            earR.position.set(0.65, 2.3, 0.1);
+            customerGroup.add(earR);
+
+            const hatBaseGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.15, 20);
+            const hatTopGeo = new THREE.SphereGeometry(0.55, 20, 20);
+            const hatMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.4 });
+            const hatBase = new THREE.Mesh(hatBaseGeo, hatMat);
+            hatBase.position.set(0, 2.35, 0);
+            customerGroup.add(hatBase);
+            const hatTop = new THREE.Mesh(hatTopGeo, hatMat);
+            hatTop.position.set(0, 2.65, 0);
+            hatTop.scale.set(1, 0.8, 1);
+            customerGroup.add(hatTop);
+
+            pawLeft = new THREE.Group();
+            pawLeft.position.set(-0.8, 0.8, 0.2);
+            const pawGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.6, 12);
+            const pawLMesh = new THREE.Mesh(pawGeo, bearMat);
+            pawLMesh.position.y = -0.2;
+            pawLeft.add(pawLMesh);
+            customerGroup.add(pawLeft);
+
+            pawRight = new THREE.Group();
+            pawRight.position.set(0.8, 0.8, 0.2);
+            const pawRMesh = new THREE.Mesh(pawGeo, bearMat);
+            pawRMesh.position.y = -0.2;
+            pawRight.add(pawRMesh);
+            customerGroup.add(pawRight);
+
+            scene.add(customerGroup);
+
+            heartsGroup = new THREE.Group();
+            heartsGroup.position.set(tableX, 1.2, -1.8);
+
+            const heartShape = new THREE.Shape();
+            heartShape.moveTo(0, 0);
+            heartShape.bezierCurveTo(0, 0.15, -0.2, 0.35, -0.35, 0.35);
+            heartShape.bezierCurveTo(-0.6, 0.35, -0.6, 0, -0.6, 0);
+            heartShape.bezierCurveTo(-0.6, -0.25, -0.3, -0.45, 0, -0.7);
+            heartShape.bezierCurveTo(0.3, -0.45, 0.6, -0.25, 0.6, 0);
+            heartShape.bezierCurveTo(0.6, 0, 0.6, 0.35, 0.35, 0.35);
+            heartShape.bezierCurveTo(0.2, 0.35, 0, 0.15, 0, 0);
+
+            const heartGeo = new THREE.ExtrudeGeometry(heartShape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
+            const heartMat = new THREE.MeshStandardMaterial({ color: 0xFF3366, roughness: 0.3 });
+
+            for (let i = 0; i < 6; i++) {
+                const hMesh = new THREE.Mesh(heartGeo, heartMat);
+                hMesh.scale.set(0.25, 0.25, 0.25);
+                hMesh.rotation.z = Math.PI;
+                hMesh.position.set((Math.random() - 0.5) * 2, Math.random() * 1.5, (Math.random() - 0.5) * 1);
+                hMesh.visible = false;
+                heartsGroup.add(hMesh);
+            }
+            scene.add(heartsGroup);
+        }
+
+        function build3DPizzaMesh() {
+            pizzaTextureMap = new THREE.CanvasTexture(sauceCanvas);
+            pizzaMesh = new THREE.Group();
+
+            const crustGeo = new THREE.TorusGeometry(2.1, 0.28, 16, 50);
+            const crustMat = new THREE.MeshStandardMaterial({ color: 0xE59866, roughness: 0.8 });
+            crustMesh = new THREE.Mesh(crustGeo, crustMat);
+            crustMesh.rotation.x = Math.PI / 2;
+            pizzaMesh.add(crustMesh);
+
+            const faceGeo = new THREE.CylinderGeometry(2.1, 2.1, 0.1, 48);
+            const faceMat = new THREE.MeshStandardMaterial({ map: pizzaTextureMap, roughness: 0.6 });
+            const faceMesh = new THREE.Mesh(faceGeo, faceMat);
+            faceMesh.position.y = -0.02;
+            pizzaMesh.add(faceMesh);
+
+            const boardGeo = new THREE.CylinderGeometry(2.5, 2.5, 0.15, 32);
+            const boardMat = new THREE.MeshStandardMaterial({ color: 0x8D5B4C, roughness: 0.9 });
+            const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+            boardMesh.position.y = -0.15;
+            pizzaMesh.add(boardMesh);
+
+            scene.add(pizzaMesh);
+        }
+
+        function build3DOvenMesh() {
+            ovenGroup = new THREE.Group();
+            ovenGroup.position.set(0, 0, -8);
+
+            const domeGeo = new THREE.SphereGeometry(3.5, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const domeMat = new THREE.MeshStandardMaterial({ color: 0x8B3A2B, roughness: 0.9 });
+            const domeMesh = new THREE.Mesh(domeGeo, domeMat);
+            ovenGroup.add(domeMesh);
+
+            scene.add(ovenGroup);
+        }
+
+        function createToppingMesh(toppingId) {
+            const group = new THREE.Group();
+            switch (toppingId) {
+                case 'mushrooms': {
+                    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xC49A6C }));
+                    cap.position.y = 0.1;
+                    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0xF5E6D3 }));
+                    group.add(cap, stem);
+                    break;
+                }
+                case 'pineapples': {
+                    const shape = new THREE.Shape();
+                    shape.moveTo(0, 0); shape.lineTo(0.2, 0.3); shape.lineTo(-0.2, 0.3); shape.closePath();
+                    const wedge = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.08, bevelEnabled: true }), new THREE.MeshStandardMaterial({ color: 0xFFC300 }));
+                    wedge.rotation.x = Math.PI / 2;
+                    group.add(wedge);
+                    break;
+                }
+                default: {
+                    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 16), new THREE.MeshStandardMaterial({ color: 0xEF233C }));
+                    group.add(disc);
+                    break;
+                }
+            }
+            return group;
+        }
+
+        function update3DPizzaToppings() {
+            while (toppingMeshesGroup.children.length > 0) {
+                toppingMeshesGroup.remove(toppingMeshesGroup.children[0]);
+            }
+
+            selectedToppings.forEach((toppingId) => {
+                for (let i = 0; i < 7; i++) {
+                    const mesh = createToppingMesh(toppingId);
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.sqrt(Math.random()) * 1.6;
+                    mesh.position.set(Math.cos(angle) * radius, 0.1, Math.sin(angle) * radius);
+                    mesh.rotation.y = Math.random() * Math.PI * 2;
+                    toppingMeshesGroup.add(mesh);
+                }
+            });
+        }
+
+        let isMouseDown3D = false, previousMouseX = 0, previousMouseY = 0;
+        function setup3DCameraControls(container) {
+            container.addEventListener('mousedown', (e) => { isMouseDown3D = true; previousMouseX = e.clientX; previousMouseY = e.clientY; });
+            window.addEventListener('mouseup', () => { isMouseDown3D = false; });
+            container.addEventListener('mousemove', (e) => {
+                if (!isMouseDown3D) return;
+                pizzaMesh.rotation.y += (e.clientX - previousMouseX) * 0.008;
+                pizzaMesh.rotation.x += (e.clientY - previousMouseY) * 0.004;
+                pizzaMesh.rotation.x = Math.max(-0.2, Math.min(0.8, pizzaMesh.rotation.x));
+                previousMouseX = e.clientX; previousMouseY = e.clientY;
+            });
+        }
+
+        function resetCamera() { targetCamPos.set(0, 5.5, 6); targetLookAt.set(0, 0, 0); pizzaMesh.rotation.set(0, 0, 0); }
+        function rotateCamera(dir) { pizzaMesh.rotation.y += dir * 0.5; }
+
+        function animate3DLoop() {
+            requestAnimationFrame(animate3DLoop);
+            if (!renderer) return;
+
+            camera.position.lerp(targetCamPos, 0.05);
+            currentLookAt.lerp(targetLookAt, 0.05);
+            camera.lookAt(currentLookAt);
+            pizzaMesh.position.lerp(targetPizzaPos, 0.06);
+
+            if (!isMouseDown3D && currentStage !== 4 && !isServingAnimation) {
+                pizzaMesh.rotation.y += 0.002;
+            }
+
+            if (customerBouncing) {
+                const time = Date.now() * 0.008;
+                customerGroup.position.y = -0.5 + Math.abs(Math.sin(time * 2)) * 0.25;
+                pawLeft.rotation.z = 1.8 + Math.sin(time * 3) * 0.3;
+                pawRight.rotation.z = -1.8 - Math.sin(time * 3) * 0.3;
+                heartsGroup.children.forEach(h => {
+                    h.visible = true;
+                    h.position.y += 0.015;
+                    if (h.position.y > 2.2) h.position.y = 0;
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            if (!renderer || !camera) return;
+            const container = document.getElementById('webgl-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // --- GAME STAGES CONTROL ---
+        function goToStage(stageNum) {
+            currentStage = stageNum;
+
+            document.querySelectorAll('.stage-control-group').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.step-indicator').forEach(el => {
+                el.classList.remove('bg-red-500', 'text-white');
+                el.classList.add('text-gray-500');
+            });
+
+            const currentStepBtn = document.getElementById(`step-btn-${stageNum}`);
+            if (currentStepBtn) {
+                currentStepBtn.classList.add('bg-red-500', 'text-white');
+                currentStepBtn.classList.remove('text-gray-500');
+            }
+
+            const bannerTitle = document.getElementById('banner-title');
+            const bannerDesc = document.getElementById('banner-desc');
+
+            if (stageNum === 1) {
+                document.getElementById('stage-1-controls').classList.remove('hidden');
+                bannerTitle.innerText = "Step 1: Custom Dough & Fine Sauce Pen";
+                bannerDesc.innerText = "Paint sauce or doodle fine details on your dough!";
+            } else if (stageNum === 2) {
+                document.getElementById('stage-2-controls').classList.remove('hidden');
+                bannerTitle.innerText = "Step 2: Choose 3 Ingredients";
+                bannerDesc.innerText = "Tap 3 toppings to put on your pizza!";
+            } else if (stageNum === 3) {
+                document.getElementById('stage-3-controls').classList.remove('hidden');
+                bannerTitle.innerText = "Step 3: Sentence & Spelling Challenge";
+                bannerDesc.innerText = "Spell the ingredients to complete your target sentence!";
+                setupStage3SentenceBuilder();
+            } else if (stageNum === 4) {
+                document.getElementById('stage-4-controls').classList.remove('hidden');
+                bannerTitle.innerText = "Step 4: Wood-Fired Oven Baking";
+                bannerDesc.innerText = "Bake your pizza to golden perfection and serve!";
+            }
+
+            // Sync progress to teacher dashboard
+            window.kahootSync.updateStudentProgress(currentStage, stars);
+            playBeepSound(520, 0.08);
+        }
+
+        function renderIngredientGrid() {
+            const grid = document.getElementById('ingredient-grid');
+            grid.innerHTML = '';
+
+            INGREDIENTS.forEach(ing => {
+                const card = document.createElement('div');
+                card.className = `p-2.5 rounded-2xl bg-white border-2 border-gray-200 hover:border-amber-400 shadow-sm transition cursor-pointer flex flex-col items-center gap-1 text-center`;
+                card.id = `ing-card-${ing.id}`;
+                card.onclick = () => toggleIngredientSelection(ing.id);
+                card.innerHTML = `
+                    <div class="w-10 h-10 flex items-center justify-center">${ing.svg}</div>
+                    <span class="text-xs font-bold text-gray-800 capitalize">${ing.name}</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function toggleIngredientSelection(id) {
+            const index = selectedToppings.indexOf(id);
+            if (index > -1) {
+                selectedToppings.splice(index, 1);
+            } else {
+                if (selectedToppings.length < 3) {
+                    selectedToppings.push(id);
+                    playBeepSound(600 + selectedToppings.length * 100, 0.08);
+                    speakText(id);
+                } else {
+                    playBeepSound(200, 0.15);
+                    return;
+                }
+            }
+            updateIngredientCardsUI();
+            update3DPizzaToppings();
+        }
+
+        function updateIngredientCardsUI() {
+            INGREDIENTS.forEach(ing => {
+                const card = document.getElementById(`ing-card-${ing.id}`);
+                if (!card) return;
+                if (selectedToppings.includes(ing.id)) {
+                    card.classList.add('border-amber-500', 'bg-amber-50', 'scale-105');
+                } else {
+                    card.classList.remove('border-amber-500', 'bg-amber-50', 'scale-105');
+                }
+            });
+            document.getElementById('selected-topping-count').innerText = selectedToppings.length;
+            document.getElementById('btn-to-stage-3').disabled = selectedToppings.length !== 3;
+        }
+
+        function clearToppings() {
+            selectedToppings = [];
+            updateIngredientCardsUI();
+            update3DPizzaToppings();
+        }
+
+        function setupStage3SentenceBuilder() {
+            currentActiveSlot = 0;
+            slotWords = ['', '', ''];
+            updateSentenceSlotsUI();
+            loadActiveSlotSpelling(0);
+        }
+
+        function loadActiveSlotSpelling(slotIndex) {
+            currentActiveSlot = slotIndex;
+            const targetIngId = selectedToppings[slotIndex];
+            if (!targetIngId) return;
+
+            const targetIng = INGREDIENTS.find(i => i.id === targetIngId);
+            const targetWord = targetIng.name.toLowerCase();
+
+            document.getElementById('current-spelling-target').innerText = targetWord;
+
+            for (let i = 0; i < 3; i++) {
+                const wrapper = document.getElementById(`slot-${i}-wrapper`);
+                if (i === slotIndex) {
+                    wrapper.classList.add('bg-purple-200', 'border-purple-600', 'ring-2', 'ring-purple-400');
+                } else {
+                    wrapper.classList.remove('bg-purple-200', 'border-purple-600', 'ring-2', 'ring-purple-400');
+                }
+            }
+
+            renderLetterSlots(targetWord);
+            renderLetterBank(targetWord);
+        }
+
+        function renderLetterSlots(word) {
+            const container = document.getElementById('letter-slots-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < word.length; i++) {
+                const slot = document.createElement('div');
+                slot.className = `blank-slot w-8 h-9 rounded-xl flex items-center justify-center font-fredoka text-lg text-purple-800 bg-white shadow-inner`;
+                slot.innerText = '_';
+                slot.ondragover = (e) => e.preventDefault();
+                slot.ondrop = (e) => handleLetterDrop(e, slot);
+                container.appendChild(slot);
+            }
+        }
+
+        function renderLetterBank(targetWord) {
+            const container = document.getElementById('letter-bank-container');
+            container.innerHTML = '';
+
+            const lettersNeeded = targetWord.split('');
+            const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+            const extraCount = Math.max(2, 8 - lettersNeeded.length);
+            for (let i = 0; i < extraCount; i++) lettersNeeded.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+
+            lettersNeeded.sort(() => Math.random() - 0.5);
+
+            lettersNeeded.forEach((char) => {
+                const tile = document.createElement('button');
+                tile.className = `letter-tile bg-amber-400 hover:bg-amber-300 text-gray-900 font-fredoka text-lg w-9 h-10 rounded-xl flex items-center justify-center cursor-grab transition`;
+                tile.innerText = char.toUpperCase();
+                tile.draggable = true;
+                tile.ondragstart = (e) => e.dataTransfer.setData('text/plain', char);
+                tile.onclick = () => fillNextLetter(char, tile);
+                container.appendChild(tile);
+            });
+        }
+
+        function fillNextLetter(char, tileElem) {
+            const targetIng = INGREDIENTS.find(i => i.id === selectedToppings[currentActiveSlot]);
+            const targetWord = targetIng.name.toLowerCase();
+
+            const slots = document.querySelectorAll('#letter-slots-container .blank-slot');
+            let filledIndex = -1;
+            for (let i = 0; i < slots.length; i++) {
+                if (slots[i].innerText === '_') { filledIndex = i; break; }
+            }
+
+            if (filledIndex !== -1) {
+                if (char.toLowerCase() === targetWord[filledIndex]) {
+                    slots[filledIndex].innerText = char.toUpperCase();
+                    slots[filledIndex].classList.add('filled', 'bg-emerald-100', 'text-emerald-700');
+                    playBeepSound(500 + filledIndex * 80, 0.08);
+                    speakText(char);
+
+                    if (tileElem) tileElem.style.visibility = 'hidden';
+
+                    let currentWordBuilt = Array.from(slots).map(s => s.innerText).join('');
+                    if (currentWordBuilt.toLowerCase() === targetWord) {
+                        slotWords[currentActiveSlot] = targetWord;
+                        updateSentenceSlotsUI();
+                        
+                        confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+                        speakText(targetWord);
+
+                        setTimeout(() => {
+                            if (currentActiveSlot < 2) {
+                                loadActiveSlotSpelling(currentActiveSlot + 1);
+                            } else {
+                                document.getElementById('btn-to-stage-4').disabled = false;
+                                speakFullSentence();
+                            }
+                        }, 600);
+                    }
+                } else {
+                    playBeepSound(180, 0.15);
+                }
+            }
+        }
+
+        function handleLetterDrop(e) {
+            e.preventDefault();
+            const char = e.dataTransfer.getData('text/plain');
+            fillNextLetter(char, null);
+        }
+
+        function updateSentenceSlotsUI() {
+            for (let i = 0; i < 3; i++) {
+                const textElem = document.getElementById(`slot-${i}-text`);
+                if (slotWords[i]) {
+                    textElem.innerText = slotWords[i];
+                    textElem.className = "text-emerald-600 underline font-extrabold";
+                } else {
+                    textElem.innerText = "_____";
+                    textElem.className = "text-purple-700 font-extrabold";
+                }
+            }
+        }
+
+        function speakTargetIngredient() {
+            const targetIngId = selectedToppings[currentActiveSlot];
+            if (targetIngId) speakText(targetIngId);
+        }
+
+        function speakFullSentence() {
+            const ing1 = slotWords[0] || selectedToppings[0] || 'mushrooms';
+            const ing2 = slotWords[1] || selectedToppings[1] || 'corn';
+            const ing3 = slotWords[2] || selectedToppings[2] || 'cheese';
+            speakText(`I would like to have ${ing1}, ${ing2} and ${ing3} on my pizza.`);
+        }
+
+        function startBakingProcess() {
+            document.getElementById('btn-start-bake').classList.add('hidden');
+            let startTime = Date.now();
+            ovenFireLight.intensity = 3;
+            playBeepSound(300, 0.5);
+
+            const interval = setInterval(() => {
+                let elapsed = Date.now() - startTime;
+                let progress = Math.min(100, (elapsed / 3000) * 100);
+                document.getElementById('bake-progress-bar').style.width = `${progress}%`;
+                pizzaMesh.rotation.y += 0.05;
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    ovenFireLight.intensity = 0;
+                    document.getElementById('btn-serve-pizza').classList.remove('hidden');
+                    playBeepSound(800, 0.3);
+                    speakText("Pizza is baked!");
+                }
+            }, 30);
+        }
+
+        function servePizzaToCustomer() {
+            stars += 3;
+            document.getElementById('star-count').innerText = stars;
+
+            const ing1 = slotWords[0] || selectedToppings[0] || 'mushrooms';
+            const ing2 = slotWords[1] || selectedToppings[1] || 'pineapples';
+            const ing3 = slotWords[2] || selectedToppings[2] || 'cheese';
+            const finalSentence = `I would like to have ${ing1}, ${ing2} and ${ing3} on my pizza.`;
+
+            document.getElementById('final-sentence-quote').innerText = `"${finalSentence}"`;
+
+            // Sync score to Teacher
+            window.kahootSync.updateStudentProgress(4, stars, finalSentence);
+
+            isServingAnimation = true;
+            targetCamPos.set(5.5, 4.2, 5.0);
+            targetLookAt.set(5.5, 0.5, -0.8);
+            targetPizzaPos.set(5.5, -0.45, 0);
+
+            setTimeout(() => {
+                customerBouncing = true;
+                document.getElementById('customer-speech-bubble').classList.remove('hidden');
+                speakText(`Mmm! Delicious! Thank you! ${finalSentence}`);
+            }, 800);
+
+            setTimeout(() => {
+                document.getElementById('celebration-overlay').classList.remove('hidden');
+                confetti({ particleCount: 110, spread: 80, origin: { y: 0.6 } });
+            }, 3200);
+        }
+
+        function renderVocabModalList() {
+            const list = document.getElementById('vocab-list-grid');
+            list.innerHTML = '';
+            INGREDIENTS.forEach(ing => {
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col items-center text-center shadow-sm hover:scale-105 transition cursor-pointer`;
+                card.onclick = () => speakText(`${ing.name}. ${ing.desc}`);
+                card.innerHTML = `
+                    <div class="w-12 h-12 flex items-center justify-center">${ing.svg}</div>
+                    <span class="font-fredoka text-sm text-gray-800 capitalize">${ing.name}</span>
+                    <span class="text-[11px] font-bold text-gray-500">${ing.desc}</span>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function openVocabularyModal() { document.getElementById('vocab-modal').classList.remove('hidden'); }
+        function closeVocabularyModal() { document.getElementById('vocab-modal').classList.add('hidden'); }
+
+        function resetGameToStart() {
+            document.getElementById('celebration-overlay').classList.add('hidden');
+            document.getElementById('customer-speech-bubble').classList.add('hidden');
+            document.getElementById('btn-start-bake').classList.remove('hidden');
+            document.getElementById('btn-serve-pizza').classList.add('hidden');
+            document.getElementById('bake-progress-bar').style.width = '0%';
+
+            isServingAnimation = false;
+            customerBouncing = false;
+            targetPizzaPos.set(0, 0, 0);
+            pizzaMesh.position.set(0, 0, 0);
+
+            resetCamera();
+            clearToppings();
+            clearCanvas();
+            goToStage(1);
+        }
+
+        function speakText(text) {
+            if (!audioEnabled || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.85;
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('audio-icon').className = audioEnabled ? 'fa-solid fa-volume-high text-red-500' : 'fa-solid fa-volume-xmark text-gray-400';
+        }
+
+        let audioCtx;
+        function playBeepSound(freq, duration) {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine'; osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function setupDragAndDropSupport() {
+            document.addEventListener('dragover', (e) => e.preventDefault());
+        }
+    </script>
+</body>
+</html>
